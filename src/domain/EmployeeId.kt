@@ -10,6 +10,8 @@ class EmployeeId private constructor(val value: String) {
             return Ok(EmployeeId(value))
         }
     }
+
+    override fun toString(): String = "EmployeeId($value)"
 }
 
 sealed class EmployeeIdError {
