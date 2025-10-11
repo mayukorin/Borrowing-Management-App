@@ -3,7 +3,7 @@ package domain
 import com.github.michaelbull.result.*
 import java.time.LocalDate
 
-class Period private constructor(
+data class Period private constructor(
     val from: LocalDate,
     val to: LocalDate
 ) {
@@ -16,8 +16,6 @@ class Period private constructor(
             return Ok(Period(from, to))
         }
     }
-
-    override fun toString(): String = "Period(from=$from, to=$to)"
 }
 
 sealed class PeriodError {
