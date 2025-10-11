@@ -235,3 +235,25 @@ sealed class EquipmentError {
 - Result パターンでエラーハンドリング
 - Period は `today` を引数で受け取ることで、テスタビリティを確保
 - Borrowing は不変性を保つため、`return()` で新しいインスタンスを返す
+
+## カプセル化の方針
+
+### Period の操作メソッド（将来追加予定）
+
+Period のフィールドへの直接アクセスは極力避け、以下のようなメソッドでカプセル化する方針：
+
+```kotlin
+// 期間の重複判定（Equipment の borrow メソッドで使用予定）
+fun overlaps(other: Period): Boolean {
+    return this.from < other.to && this.to > other.from
+}
+
+// 特定日の含有判定
+fun contains(date: LocalDate): Boolean {
+    return date >= from && date < to  // または date <= to（要件による）
+}
+```
+
+**注意**:
+- ビジネスルールのチェック（「貸出期間が重なる予約はできない」等）は Equipment 起点で実装する
+- これらのメソッドは Equipment 実装時に必要に応じて追加する
