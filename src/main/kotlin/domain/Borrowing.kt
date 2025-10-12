@@ -41,6 +41,16 @@ class Borrowing private constructor(
         )
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Borrowing) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
     override fun toString(): String {
         return "Borrowing(id=$id, employeeId=$employeeId, equipmentId=$equipmentId, period=$period, isReturned=$isReturned)"
     }
