@@ -154,7 +154,7 @@ class Borrowing private constructor(
         ): Borrowing
     }
 
-    fun return(): Result<Borrowing, BorrowingError>
+    fun markAsReturned(): Result<Borrowing, BorrowingError>
 }
 
 sealed class BorrowingError {
@@ -216,7 +216,7 @@ sealed class EquipmentError {
 
 **3. Equipment から貸出が返却される (`returnBorrowing`)**
 - 該当する borrowingId の貸出を borrowings リストから探す
-- 見つかった borrowing に対して `borrowing.return()` を実行
+- 見つかった borrowing に対して `borrowing.markAsReturned()` を実行
 - 全ての貸出が返却済みなら status を AVAILABLE に戻す
 
 **4. Equipment が廃棄される (`dispose`)**
@@ -234,7 +234,7 @@ sealed class EquipmentError {
 - コンストラクタは private にして、不正な状態のオブジェクト生成を防ぐ
 - Result パターンでエラーハンドリング
 - Period は `today` を引数で受け取ることで、テスタビリティを確保
-- Borrowing は不変性を保つため、`return()` で新しいインスタンスを返す
+- Borrowing は不変性を保つため、`markAsReturned()` で新しいインスタンスを返す
 
 ## カプセル化の方針
 

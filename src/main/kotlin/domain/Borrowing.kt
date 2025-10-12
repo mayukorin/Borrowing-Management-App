@@ -26,7 +26,7 @@ class Borrowing private constructor(
         }
     }
 
-    fun return(): Result<Borrowing, BorrowingError> {
+    fun markAsReturned(): Result<Borrowing, BorrowingError> {
         if (isReturned) {
             return Err(BorrowingError.AlreadyReturned)
         }
