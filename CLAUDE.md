@@ -60,3 +60,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - バリデーションエラーやドメインエラーを適切に区別してレスポンスを返す
 - 永続化の仕組みは問わない（メモリ上でもよい）
+
+## 実装するとき
+@design-memo.md の設計方針に従って実装して
