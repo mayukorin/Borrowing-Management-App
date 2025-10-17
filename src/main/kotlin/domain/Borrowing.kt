@@ -6,8 +6,7 @@ class Borrowing private constructor(
     val id: BorrowingId,
     val employeeId: EmployeeId,
     val equipmentId: EquipmentId,
-    val period: Period,
-    val isReturned: Boolean
+    val period: Period
 ) {
     companion object {
         fun create(
@@ -20,25 +19,9 @@ class Borrowing private constructor(
                 id = id,
                 employeeId = employeeId,
                 equipmentId = equipmentId,
-                period = period,
-                isReturned = false
+                period = period
             )
         }
-    }
-
-    fun markAsReturned(): Result<Borrowing, BorrowingError> {
-        if (isReturned) {
-            return Err(BorrowingError.AlreadyReturned)
-        }
-        return Ok(
-            Borrowing(
-                id = id,
-                employeeId = employeeId,
-                equipmentId = equipmentId,
-                period = period,
-                isReturned = true
-            )
-        )
     }
 
     override fun equals(other: Any?): Boolean {
@@ -52,10 +35,6 @@ class Borrowing private constructor(
     }
 
     override fun toString(): String {
-        return "Borrowing(id=$id, employeeId=$employeeId, equipmentId=$equipmentId, period=$period, isReturned=$isReturned)"
+        return "Borrowing(id=$id, employeeId=$employeeId, equipmentId=$equipmentId, period=$period)"
     }
-}
-
-sealed class BorrowingError {
-    data object AlreadyReturned : BorrowingError()
 }
