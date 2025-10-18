@@ -34,6 +34,24 @@ class Borrowing private constructor(
         return period.isOngoingOrFuture(today)
     }
 
+    /**
+     * この貸出が他の貸出と期間が重複するかを判定する
+     * @param other 比較対象の貸出
+     * @return 期間が重複する場合 true
+     */
+    fun overlaps(other: Borrowing): Boolean {
+        return period.overlaps(other.period)
+    }
+
+    /**
+     * この貸出が指定日を含むかを判定する
+     * @param date 判定対象の日付
+     * @return 貸出期間が指定日を含む場合 true
+     */
+    fun contains(date: LocalDate): Boolean {
+        return period.contains(date)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Borrowing) return false

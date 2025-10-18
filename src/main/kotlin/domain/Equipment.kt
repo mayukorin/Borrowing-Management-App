@@ -20,6 +20,40 @@ class Equipment private constructor(
         }
     }
 
+    fun borrow(borrowing: Borrowing, today: LocalDate): Result<Equipment, EquipmentError> {
+        // 廃棄済み備品を借りることはできない
+        if (status == EquipmentStatus.DISPOSED) {
+            return Err(EquipmentError.AlreadyDisposed)
+        }
+
+        // 既存の borrowings と期間が重複する貸出は追加できない
+        val overlappingBorrowing = borrowings.find { existing ->
+            existing.overlaps(borrowing)
+        }
+        if (overlappingBorrowing != null) {
+            return Err(EquipmentError.PeriodOverlap(overlappingBorrowing, borrowing))
+        }
+
+        // 新しい貸出を追加
+        val newBorrowings = borrowings + borrowing
+
+        // 新しい貸出の期間が today を含む場合は status を BORROWED に更新
+        val newStatus = if (borrowing.contains(today)) {
+            EquipmentStatus.BORROWED
+        } else {
+            status
+        }
+
+        return Ok(
+            Equipment(
+                id = id,
+                name = name,
+                status = newStatus,
+                borrowings = newBorrowings
+            )
+        )
+    }
+
     fun dispose(today: LocalDate): Result<Equipment, EquipmentError> {
         // 既に廃棄済みの場合はエラー
         if (status == EquipmentStatus.DISPOSED) {

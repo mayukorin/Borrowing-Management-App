@@ -25,6 +25,24 @@ data class Period private constructor(
     fun isOngoingOrFuture(today: LocalDate): Boolean {
         return to >= today
     }
+
+    /**
+     * 期間の重複判定
+     * @param other 比較対象の期間
+     * @return 期間が重複する場合 true（連続している場合も重複と見なす）
+     */
+    fun overlaps(other: Period): Boolean {
+        return this.from <= other.to && this.to >= other.from
+    }
+
+    /**
+     * 特定日の含有判定
+     * @param date 判定対象の日付
+     * @return 期間が指定日を含む場合 true
+     */
+    fun contains(date: LocalDate): Boolean {
+        return date >= from && date <= to
+    }
 }
 
 sealed class PeriodError {
