@@ -136,14 +136,13 @@ sealed class BorrowingIdError {
 // Borrowing.kt
 package domain
 
-import com.github.michaelbull.result.*
+import java.time.LocalDate
 
 class Borrowing private constructor(
     val id: BorrowingId,
     val employeeId: EmployeeId,
     val equipmentId: EquipmentId,
-    val period: Period,
-    val isReturned: Boolean
+    val period: Period
 ) {
     companion object {
         fun create(
@@ -154,13 +153,15 @@ class Borrowing private constructor(
         ): Borrowing
     }
 
-    fun markAsReturned(): Result<Borrowing, BorrowingError>
-}
-
-sealed class BorrowingError {
-    data object AlreadyReturned : BorrowingError()
+    fun isActiveOrFuture(today: LocalDate): Boolean
 }
 ```
+
+**設計方針:**
+- Borrowing 自体は返却状態を持たない（isReturned フィールドなし）
+- 返却状態は Equipment が管理する（borrowings リストへの返却日時の記録など）
+- 単一責任の原則: Borrowing は「誰が・何を・いつからいつまで借りるか」の情報のみを表現
+- `isActiveOrFuture`: 貸出が現在進行中または未来の予約かを判定（内部で period.isOngoingOrFuture を呼び出す）
 
 ### Equipment
 
@@ -169,6 +170,7 @@ sealed class BorrowingError {
 package domain
 
 import com.github.michaelbull.result.*
+import java.time.LocalDate
 
 class Equipment private constructor(
     val id: EquipmentId,
@@ -180,11 +182,11 @@ class Equipment private constructor(
         fun create(id: EquipmentId, name: EquipmentName): Equipment
     }
 
-    fun borrow(borrowing: Borrowing): Result<Equipment, EquipmentError>
+    fun borrow(borrowing: Borrowing, today: LocalDate): Result<Equipment, EquipmentError>
 
-    fun returnBorrowing(borrowingId: BorrowingId): Result<Equipment, EquipmentError>
+    fun returnBorrowing(borrowingId: BorrowingId, today: LocalDate): Result<Equipment, EquipmentError>
 
-    fun dispose(): Result<Equipment, EquipmentError>
+    fun dispose(today: LocalDate): Result<Equipment, EquipmentError>
 }
 
 enum class EquipmentStatus {
@@ -195,12 +197,18 @@ enum class EquipmentStatus {
 
 sealed class EquipmentError {
     data object AlreadyDisposed : EquipmentError()
-    data object AlreadyBorrowed : EquipmentError()
     data class PeriodOverlap(val existingBorrowing: Borrowing, val newBorrowing: Borrowing) : EquipmentError()
     data class BorrowingNotFound(val borrowingId: BorrowingId) : EquipmentError()
     data object CannotDisposeWhileBorrowed : EquipmentError()
 }
 ```
+
+**設計方針:**
+- `borrowings`: すべての貸出情報（過去・現在・未来の予約）を一元管理
+- 現在貸出中かどうかは `borrowings` と `today` から判定可能
+- 期間重複チェック時に `borrowings` 全体をチェックすることで、未来の予約との重複も検出できる
+- 返却済みかどうかの判定は、Period と `today` の比較で実現（`borrowing.period.to < today` なら返却済み）
+- 状態の一貫性: `(status == BORROWED) ⇔ (borrowings に today を含む期間の貸出が存在する)`
 
 #### Equipment のライフイベント
 
@@ -210,18 +218,21 @@ sealed class EquipmentError {
 
 **2. Equipment に新たに貸出が追加される (`borrow`)**
 - 廃棄済み備品を借りることはできない（status == DISPOSED）
-- 返却されていない備品を再度貸し出すことはできない（borrowings に isReturned = false のものがないか）
-- 貸出期間が重なる予約はできない（borrowings リストで期間重複チェック）
-- 成功時は status を BORROWED に更新
+- 既存の borrowings と期間が重複する貸出は追加できない（PeriodOverlap エラー）
+- 成功時は borrowings に新しい貸出を追加し、必要に応じて status を更新
+  - 新しい貸出の期間が today を含む場合は status を BORROWED に更新
+  - 未来の予約の場合は status は AVAILABLE のまま
 
 **3. Equipment から貸出が返却される (`returnBorrowing`)**
-- 該当する borrowingId の貸出を borrowings リストから探す
-- 見つかった borrowing に対して `borrowing.markAsReturned()` を実行
-- 全ての貸出が返却済みなら status を AVAILABLE に戻す
+- borrowings から該当する borrowingId を探す
+- 見つからない場合はエラー（BorrowingNotFound）
+- 成功時は該当する borrowing を borrowings から削除
+- borrowings に today を含む期間の貸出がなくなった場合は status を AVAILABLE に戻す
 
 **4. Equipment が廃棄される (`dispose`)**
-- 貸出中の備品は廃棄できない（borrowings に isReturned = false のものがないか）
-- 既に廃棄済みの場合はエラー
+- 現在貸出中の場合（borrowings に today を含む期間の貸出が存在する場合）は廃棄できない（CannotDisposeWhileBorrowed）
+- 未来の予約が残っている場合も廃棄できない（CannotDisposeWhileBorrowed）
+- 既に廃棄済みの場合はエラー（AlreadyDisposed）
 - 成功時は status を DISPOSED に変更
 - 廃棄後は AVAILABLE に戻せない（状態の不可逆性）
 
@@ -230,19 +241,25 @@ sealed class EquipmentError {
 - NotNull/NotEmpty のバリデーションを `from` メソッドで実施
 - ID のフォーマットチェック（EmployeeId: "emp-" で始まる、EquipmentId: "eq-" で始まる、BorrowingId: "brw-" で始まる）
 - Period のチェック（from < to、過去日でないこと）
-- Borrowing の返却チェック（既に返却済みの貸出を再度返却できない）
+- 期間重複チェックは Equipment が責務を持つ（borrowings 全体との重複確認）
+- 返却チェックは Equipment が責務を持つ（borrowings からの該当 borrowing の検索）
 - コンストラクタは private にして、不正な状態のオブジェクト生成を防ぐ
 - Result パターンでエラーハンドリング
-- Period は `today` を引数で受け取ることで、テスタビリティを確保
-- Borrowing は不変性を保つため、`markAsReturned()` で新しいインスタンスを返す
+- Period と Equipment の各メソッドは `today` を引数で受け取ることで、テスタビリティを確保
+- Equipment は不変性を保つため、各操作メソッドで新しいインスタンスを返す
 
 ## カプセル化の方針
 
-### Period の操作メソッド（将来追加予定）
+### Period の操作メソッド
 
 Period のフィールドへの直接アクセスは極力避け、以下のようなメソッドでカプセル化する方針：
 
 ```kotlin
+// 期間が進行中または未来のものかを判定（Equipment の dispose メソッドで使用）
+fun isOngoingOrFuture(today: LocalDate): Boolean {
+    return to >= today
+}
+
 // 期間の重複判定（Equipment の borrow メソッドで使用予定）
 fun overlaps(other: Period): Boolean {
     return this.from < other.to && this.to > other.from

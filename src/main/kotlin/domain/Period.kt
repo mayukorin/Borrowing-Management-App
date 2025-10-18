@@ -16,6 +16,15 @@ data class Period private constructor(
             return Ok(Period(from, to))
         }
     }
+
+    /**
+     * 指定された日付に対して、この期間が進行中または未来のものかを判定する
+     * @param today 基準日
+     * @return 期間の終了日が基準日以降の場合 true
+     */
+    fun isOngoingOrFuture(today: LocalDate): Boolean {
+        return to >= today
+    }
 }
 
 sealed class PeriodError {
