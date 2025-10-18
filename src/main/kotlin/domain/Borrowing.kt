@@ -1,6 +1,7 @@
 package domain
 
 import com.github.michaelbull.result.*
+import java.time.LocalDate
 
 class Borrowing private constructor(
     val id: BorrowingId,
@@ -22,6 +23,15 @@ class Borrowing private constructor(
                 period = period
             )
         }
+    }
+
+    /**
+     * この貸出が現在進行中または未来の予約かを判定する
+     * @param today 基準日
+     * @return 貸出期間が進行中または未来の場合 true
+     */
+    fun isActiveOrFuture(today: LocalDate): Boolean {
+        return period.isOngoingOrFuture(today)
     }
 
     override fun equals(other: Any?): Boolean {

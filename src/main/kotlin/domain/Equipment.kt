@@ -25,11 +25,9 @@ class Equipment private constructor(
         if (status == EquipmentStatus.DISPOSED) {
             return Err(EquipmentError.AlreadyDisposed)
         }
-
         // 現在貸出中または未来の予約がある場合は廃棄できない
-        // borrowings に today 以降の期間が含まれる貸出が存在する場合はエラー
         val hasActiveOrFutureBorrowing = borrowings.any { borrowing ->
-            borrowing.period.to >= today
+            borrowing.isActiveOrFuture(today)
         }
         if (hasActiveOrFutureBorrowing) {
             return Err(EquipmentError.CannotDisposeWhileBorrowed)

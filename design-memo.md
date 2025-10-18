@@ -136,6 +136,8 @@ sealed class BorrowingIdError {
 // Borrowing.kt
 package domain
 
+import java.time.LocalDate
+
 class Borrowing private constructor(
     val id: BorrowingId,
     val employeeId: EmployeeId,
@@ -150,6 +152,8 @@ class Borrowing private constructor(
             period: Period
         ): Borrowing
     }
+
+    fun isActiveOrFuture(today: LocalDate): Boolean
 }
 ```
 
@@ -157,6 +161,7 @@ class Borrowing private constructor(
 - Borrowing 自体は返却状態を持たない（isReturned フィールドなし）
 - 返却状態は Equipment が管理する（borrowings リストへの返却日時の記録など）
 - 単一責任の原則: Borrowing は「誰が・何を・いつからいつまで借りるか」の情報のみを表現
+- `isActiveOrFuture`: 貸出が現在進行中または未来の予約かを判定（内部で period.isOngoingOrFuture を呼び出す）
 
 ### Equipment
 
@@ -245,11 +250,16 @@ sealed class EquipmentError {
 
 ## カプセル化の方針
 
-### Period の操作メソッド（将来追加予定）
+### Period の操作メソッド
 
 Period のフィールドへの直接アクセスは極力避け、以下のようなメソッドでカプセル化する方針：
 
 ```kotlin
+// 期間が進行中または未来のものかを判定（Equipment の dispose メソッドで使用）
+fun isOngoingOrFuture(today: LocalDate): Boolean {
+    return to >= today
+}
+
 // 期間の重複判定（Equipment の borrow メソッドで使用予定）
 fun overlaps(other: Period): Boolean {
     return this.from < other.to && this.to > other.from
