@@ -359,4 +359,72 @@ class EquipmentTest {
         assertEquals(id, equipmentWithReservation.id)
         assertEquals(name, equipmentWithReservation.name)
     }
+
+    @Test
+    fun `borrow - 貸出開始日当日（from == today）は、statusが「貸出中」になること`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        val equipment = Equipment.create(id, name)
+
+        // 貸出開始日が today と同じ貸出を作成（2025-10-20 から 2025-10-25）
+        val period = createValidPeriod(
+            from = today,
+            to = LocalDate.of(2025, 10, 25),
+            today = today
+        )
+        val borrowing = createBorrowing(
+            id = createValidBorrowingId(),
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = period
+        )
+
+        // Act
+        val result = equipment.borrow(borrowing, today)
+
+        // Assert
+        assertTrue(result is Ok)
+        val borrowedEquipment = result.unwrap()
+        assertEquals(EquipmentStatus.BORROWED, borrowedEquipment.status)
+        assertTrue(borrowedEquipment.borrowings.contains(borrowing))
+        assertEquals(id, borrowedEquipment.id)
+        assertEquals(name, borrowedEquipment.name)
+    }
+
+    @Test
+    fun `borrow - 貸出終了日当日（to == today）は、statusは「貸出中」である`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 25)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        val equipment = Equipment.create(id, name)
+
+        // 貸出終了日が today と同じ貸出を作成（2025-10-20 から 2025-10-25）
+        val period = createValidPeriod(
+            from = LocalDate.of(2025, 10, 20),
+            to = today,
+            today = LocalDate.of(2025, 10, 19)
+        )
+        val borrowing = createBorrowing(
+            id = createValidBorrowingId(),
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = period
+        )
+
+        // Act
+        val result = equipment.borrow(borrowing, today)
+
+        // Assert
+        assertTrue(result is Ok)
+        val borrowedEquipment = result.unwrap()
+        assertEquals(EquipmentStatus.BORROWED, borrowedEquipment.status)
+        assertTrue(borrowedEquipment.borrowings.contains(borrowing))
+        assertEquals(id, borrowedEquipment.id)
+        assertEquals(name, borrowedEquipment.name)
+    }
 }

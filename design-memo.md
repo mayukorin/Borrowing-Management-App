@@ -264,14 +264,14 @@ fun isOngoingOrFuture(today: LocalDate): Boolean {
     return to >= today
 }
 
-// 期間の重複判定
+// 期間の重複判定（連続している場合も重複と見なす）
 fun overlaps(other: Period): Boolean {
-    return this.from < other.to && this.to > other.from
+    return this.from <= other.to && this.to >= other.from
 }
 
-// 特定日の含有判定
+// 特定日の含有判定（開始日と終了日を含む）
 fun contains(date: LocalDate): Boolean {
-    return date >= from && date < to
+    return date >= from && date <= to
 }
 ```
 
@@ -300,3 +300,12 @@ fun contains(date: LocalDate): Boolean {
 - Equipment は Borrowing のメソッドを呼び出す（Borrowing.period に直接アクセスしない）
 - Borrowing は Period のメソッドを呼び出す（Period のフィールドに直接アクセスしない）
 - これにより、Tell, Don't Ask の原則と Law of Demeter に従った設計を実現
+
+**境界値の仕様**:
+- `contains(date)`: 期間の開始日（from）と終了日（to）の両方を含む
+  - `date >= from && date <= to`
+  - 例: 10/20～10/25 の期間は、10/20 と 10/25 の両方を含む
+- `overlaps(other)`: 連続している期間も重複と見なす
+  - `this.from <= other.to && this.to >= other.from`
+  - 例: 10/20～10/25 と 10/25～10/30 は 10/25 で重複（連続）していると見なす
+  - 例: 10/20～10/25 と 10/26～10/30 は重複していない（断続的）
