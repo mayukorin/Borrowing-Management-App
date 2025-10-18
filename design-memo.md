@@ -154,6 +154,8 @@ class Borrowing private constructor(
     }
 
     fun isActiveOrFuture(today: LocalDate): Boolean
+    fun overlaps(other: Borrowing): Boolean
+    fun contains(date: LocalDate): Boolean
 }
 ```
 
@@ -162,6 +164,8 @@ class Borrowing private constructor(
 - 返却状態は Equipment が管理する（borrowings リストへの返却日時の記録など）
 - 単一責任の原則: Borrowing は「誰が・何を・いつからいつまで借りるか」の情報のみを表現
 - `isActiveOrFuture`: 貸出が現在進行中または未来の予約かを判定（内部で period.isOngoingOrFuture を呼び出す）
+- `overlaps`: この貸出が他の貸出と期間が重複するかを判定（内部で period.overlaps を呼び出す）
+- `contains`: この貸出が指定日を含むかを判定（内部で period.contains を呼び出す）
 
 ### Equipment
 
@@ -252,25 +256,47 @@ sealed class EquipmentError {
 
 ### Period の操作メソッド
 
-Period のフィールドへの直接アクセスは極力避け、以下のようなメソッドでカプセル化する方針：
+Period のフィールドへの直接アクセスは極力避け、以下のようなメソッドでカプセル化する：
 
 ```kotlin
-// 期間が進行中または未来のものかを判定（Equipment の dispose メソッドで使用）
+// 期間が進行中または未来のものかを判定
 fun isOngoingOrFuture(today: LocalDate): Boolean {
     return to >= today
 }
 
-// 期間の重複判定（Equipment の borrow メソッドで使用予定）
+// 期間の重複判定
 fun overlaps(other: Period): Boolean {
     return this.from < other.to && this.to > other.from
 }
 
 // 特定日の含有判定
 fun contains(date: LocalDate): Boolean {
-    return date >= from && date < to  // または date <= to（要件による）
+    return date >= from && date < to
 }
 ```
 
-**注意**:
-- ビジネスルールのチェック（「貸出期間が重なる予約はできない」等）は Equipment 起点で実装する
-- これらのメソッドは Equipment 実装時に必要に応じて追加する
+### Borrowing の操作メソッド
+
+Borrowing の period フィールドへの直接アクセスは極力避け、Borrowing のメソッドを通じてアクセスする：
+
+```kotlin
+// 貸出が現在進行中または未来の予約かを判定（内部で period.isOngoingOrFuture を呼び出す）
+fun isActiveOrFuture(today: LocalDate): Boolean {
+    return period.isOngoingOrFuture(today)
+}
+
+// 貸出が他の貸出と期間が重複するかを判定（内部で period.overlaps を呼び出す）
+fun overlaps(other: Borrowing): Boolean {
+    return period.overlaps(other.period)
+}
+
+// 貸出が指定日を含むかを判定（内部で period.contains を呼び出す）
+fun contains(date: LocalDate): Boolean {
+    return period.contains(date)
+}
+```
+
+**カプセル化の階層**:
+- Equipment は Borrowing のメソッドを呼び出す（Borrowing.period に直接アクセスしない）
+- Borrowing は Period のメソッドを呼び出す（Period のフィールドに直接アクセスしない）
+- これにより、Tell, Don't Ask の原則と Law of Demeter に従った設計を実現
