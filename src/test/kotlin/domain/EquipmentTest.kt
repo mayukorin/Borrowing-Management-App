@@ -554,4 +554,49 @@ class EquipmentTest {
         assertEquals(id, returnedEquipment.id)
         assertEquals(name, returnedEquipment.name)
     }
+
+    @Test
+    fun `returnBorrowing - 未来の予約を返却した場合、statusはAVAILABLEになる`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        // 未来の予約を作成（2025-10-25 から 2025-10-30、today より後に開始）
+        val futureBorrowingId = BorrowingId.from("brw-001").unwrap()
+        val futurePeriod = createValidPeriod(
+            from = LocalDate.of(2025, 10, 25),
+            to = LocalDate.of(2025, 10, 30),
+            today = today
+        )
+        val futureBorrowing = createBorrowing(
+            id = futureBorrowingId,
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = futurePeriod
+        )
+
+        // 未来の予約のみを持つ備品を作成（status は AVAILABLE）
+        val equipment = Equipment::class.java
+            .getDeclaredConstructor(
+                EquipmentId::class.java,
+                EquipmentName::class.java,
+                EquipmentStatus::class.java,
+                List::class.java
+            )
+            .apply { isAccessible = true }
+            .newInstance(id, name, EquipmentStatus.AVAILABLE, listOf(futureBorrowing))
+
+        // Act: 未来の予約を返却
+        val result = equipment.returnBorrowing(futureBorrowingId, today)
+
+        // Assert
+        assertTrue(result is Ok)
+        val returnedEquipment = result.unwrap()
+        assertEquals(EquipmentStatus.AVAILABLE, returnedEquipment.status)
+        assertFalse(returnedEquipment.borrowings.contains(futureBorrowing))
+        assertTrue(returnedEquipment.borrowings.isEmpty())
+        assertEquals(id, returnedEquipment.id)
+        assertEquals(name, returnedEquipment.name)
+    }
 }
