@@ -54,6 +54,35 @@ class Equipment private constructor(
         )
     }
 
+    fun returnBorrowing(borrowingId: BorrowingId, today: LocalDate): Result<Equipment, EquipmentError> {
+        // borrowings から該当する borrowingId を探す
+        if (borrowings.none { it.id == borrowingId }) {
+            return Err(EquipmentError.BorrowingNotFound(borrowingId))
+        }
+
+        // 該当する borrowing を borrowings から削除
+        val newBorrowings = borrowings.filter { it.id != borrowingId }
+
+        // borrowings に today を含む期間の貸出がなくなった場合は status を AVAILABLE に戻す
+        val hasCurrentBorrowing = newBorrowings.any { borrowing ->
+            borrowing.contains(today)
+        }
+        val newStatus = if (hasCurrentBorrowing) {
+            EquipmentStatus.BORROWED
+        } else {
+            EquipmentStatus.AVAILABLE
+        }
+
+        return Ok(
+            Equipment(
+                id = id,
+                name = name,
+                status = newStatus,
+                borrowings = newBorrowings
+            )
+        )
+    }
+
     fun dispose(today: LocalDate): Result<Equipment, EquipmentError> {
         // 既に廃棄済みの場合はエラー
         if (status == EquipmentStatus.DISPOSED) {

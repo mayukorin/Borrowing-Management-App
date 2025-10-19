@@ -427,4 +427,131 @@ class EquipmentTest {
         assertEquals(id, borrowedEquipment.id)
         assertEquals(name, borrowedEquipment.name)
     }
+
+    @Test
+    fun `returnBorrowing - 該当する貸出が見つからない場合はエラーになる`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        val equipment = Equipment.create(id, name)
+
+        // 存在しない borrowingId を指定
+        val nonExistentBorrowingId = BorrowingId.from("brw-999").unwrap()
+
+        // Act
+        val result = equipment.returnBorrowing(nonExistentBorrowingId, today)
+
+        // Assert
+        assertTrue(result is Err)
+        val error = result.unwrapError()
+        assertTrue(error is EquipmentError.BorrowingNotFound)
+        assertEquals(nonExistentBorrowingId, error.borrowingId)
+    }
+
+    @Test
+    fun `returnBorrowing - 今日を含む期間の貸し出しがなくなった場合、statusがAVAILABLEになる`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        // 今日を含む貸出を作成（2025-10-18 から 2025-10-25）
+        val currentPeriod = createValidPeriod(
+            from = LocalDate.of(2025, 10, 18),
+            to = LocalDate.of(2025, 10, 25),
+            today = LocalDate.of(2025, 10, 17)
+        )
+        val currentBorrowingId = BorrowingId.from("brw-001").unwrap()
+        val currentBorrowing = createBorrowing(
+            id = currentBorrowingId,
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = currentPeriod
+        )
+
+        // 現在貸出中の備品を作成
+        val equipment = Equipment::class.java
+            .getDeclaredConstructor(
+                EquipmentId::class.java,
+                EquipmentName::class.java,
+                EquipmentStatus::class.java,
+                List::class.java
+            )
+            .apply { isAccessible = true }
+            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(currentBorrowing))
+
+        // Act
+        val result = equipment.returnBorrowing(currentBorrowingId, today)
+
+        // Assert
+        assertTrue(result is Ok)
+        val returnedEquipment = result.unwrap()
+        assertEquals(EquipmentStatus.AVAILABLE, returnedEquipment.status)
+        assertFalse(returnedEquipment.borrowings.contains(currentBorrowing))
+        assertTrue(returnedEquipment.borrowings.isEmpty())
+        assertEquals(id, returnedEquipment.id)
+        assertEquals(name, returnedEquipment.name)
+    }
+
+    @Test
+    fun `returnBorrowing - 今日を含む期間の貸出がある場合は、statusはBORROWEDのまま`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        // 返却する貸出（2025-10-10 から 2025-10-15、既に終了）
+        val pastBorrowingId = BorrowingId.from("brw-001").unwrap()
+        val pastPeriod = createValidPeriod(
+            from = LocalDate.of(2025, 10, 10),
+            to = LocalDate.of(2025, 10, 15),
+            today = LocalDate.of(2025, 10, 9)
+        )
+        val pastBorrowing = createBorrowing(
+            id = pastBorrowingId,
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = pastPeriod
+        )
+
+        // 今日を含む貸出（2025-10-18 から 2025-10-25）
+        val currentBorrowingId = BorrowingId.from("brw-002").unwrap()
+        val currentPeriod = createValidPeriod(
+            from = LocalDate.of(2025, 10, 18),
+            to = LocalDate.of(2025, 10, 25),
+            today = LocalDate.of(2025, 10, 17)
+        )
+        val currentBorrowing = createBorrowing(
+            id = currentBorrowingId,
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = currentPeriod
+        )
+
+        // 2つの貸出を持つ備品を作成
+        val equipment = Equipment::class.java
+            .getDeclaredConstructor(
+                EquipmentId::class.java,
+                EquipmentName::class.java,
+                EquipmentStatus::class.java,
+                List::class.java
+            )
+            .apply { isAccessible = true }
+            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(pastBorrowing, currentBorrowing))
+
+        // Act: 過去の貸出を返却
+        val result = equipment.returnBorrowing(pastBorrowingId, today)
+
+        // Assert
+        assertTrue(result is Ok)
+        val returnedEquipment = result.unwrap()
+        assertEquals(EquipmentStatus.BORROWED, returnedEquipment.status)
+        assertFalse(returnedEquipment.borrowings.contains(pastBorrowing))
+        assertTrue(returnedEquipment.borrowings.contains(currentBorrowing))
+        assertEquals(1, returnedEquipment.borrowings.size)
+        assertEquals(id, returnedEquipment.id)
+        assertEquals(name, returnedEquipment.name)
+    }
 }
