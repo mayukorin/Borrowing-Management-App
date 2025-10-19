@@ -46,6 +46,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. 貸出期間が重なる予約はできない
 3. 返却されていない備品を再度貸し出すことはできない
 4. 社員が廃棄済み備品を借りることはできない
+5. 廃棄済み備品に対する返却はできない
 
 ## API仕様
 
