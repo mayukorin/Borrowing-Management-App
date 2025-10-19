@@ -228,6 +228,7 @@ sealed class EquipmentError {
   - 未来の予約の場合は status は AVAILABLE のまま
 
 **3. Equipment から貸出が返却される (`returnBorrowing`)**
+- 廃棄済み備品に対する返却はできない（status == DISPOSED の場合はエラー）
 - borrowings から該当する borrowingId を探す
 - 見つからない場合はエラー（BorrowingNotFound）
 - 成功時は該当する borrowing を borrowings から削除

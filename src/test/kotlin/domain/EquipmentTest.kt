@@ -599,4 +599,44 @@ class EquipmentTest {
         assertEquals(id, returnedEquipment.id)
         assertEquals(name, returnedEquipment.name)
     }
+
+    @Test
+    fun `returnBorrowing - 廃棄済み備品に対する返却はエラーになる`() {
+        // Arrange
+        val today = LocalDate.of(2025, 10, 20)
+        val id = createValidEquipmentId()
+        val name = createValidEquipmentName()
+
+        // 過去の貸出を作成（既に終了している）
+        val pastBorrowingId = BorrowingId.from("brw-001").unwrap()
+        val pastPeriod = createValidPeriod(
+            from = LocalDate.of(2025, 10, 10),
+            to = LocalDate.of(2025, 10, 15),
+            today = LocalDate.of(2025, 10, 9)
+        )
+        val pastBorrowing = createBorrowing(
+            id = pastBorrowingId,
+            employeeId = createValidEmployeeId(),
+            equipmentId = id,
+            period = pastPeriod
+        )
+
+        // 廃棄済み備品を作成（過去の貸出を持つが、status は DISPOSED）
+        val disposedEquipment = Equipment::class.java
+            .getDeclaredConstructor(
+                EquipmentId::class.java,
+                EquipmentName::class.java,
+                EquipmentStatus::class.java,
+                List::class.java
+            )
+            .apply { isAccessible = true }
+            .newInstance(id, name, EquipmentStatus.DISPOSED, listOf(pastBorrowing))
+
+        // Act: 廃棄済み備品に対して返却を試みる
+        val result = disposedEquipment.returnBorrowing(pastBorrowingId, today)
+
+        // Assert
+        assertTrue(result is Err)
+        assertEquals(EquipmentError.AlreadyDisposed, result.unwrapError())
+    }
 }

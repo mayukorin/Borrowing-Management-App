@@ -55,6 +55,11 @@ class Equipment private constructor(
     }
 
     fun returnBorrowing(borrowingId: BorrowingId, today: LocalDate): Result<Equipment, EquipmentError> {
+        // 廃棄済み備品に対する返却は禁止
+        if (status == EquipmentStatus.DISPOSED) {
+            return Err(EquipmentError.AlreadyDisposed)
+        }
+
         // borrowings から該当する borrowingId を探す
         if (borrowings.none { it.id == borrowingId }) {
             return Err(EquipmentError.BorrowingNotFound(borrowingId))
