@@ -18,6 +18,15 @@ class Equipment private constructor(
                 borrowings = emptyList()
             )
         }
+
+        internal fun createForTest(
+            id: EquipmentId,
+            name: EquipmentName,
+            status: EquipmentStatus,
+            borrowings: List<Borrowing>
+        ): Equipment {
+            return Equipment(id, name, status, borrowings)
+        }
     }
 
     fun borrow(borrowing: Borrowing, today: LocalDate): Result<Equipment, EquipmentError> {

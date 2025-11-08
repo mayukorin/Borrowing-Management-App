@@ -70,20 +70,13 @@ class EquipmentTest {
             period = pastPeriod
         )
 
-        // 過去の貸出を含む備品を作成（内部的にborrowingsリストに追加）
-        val equipment = Equipment.create(id, name)
-        // Equipment の内部状態を直接操作できないため、リフレクションまたは
-        // Equipment クラスに borrowings を含むコンストラクタを使用
-        // ここでは簡易的に、Equipment の private コンストラクタを利用
-        val equipmentWithPastBorrowing = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.AVAILABLE, listOf(pastBorrowing))
+        // 過去の貸出を含む備品を作成（テスト専用ファクトリーメソッドを使用）
+        val equipmentWithPastBorrowing = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.AVAILABLE,
+            borrowings = listOf(pastBorrowing)
+        )
 
         // Act
         val result = equipmentWithPastBorrowing.dispose(today)
@@ -104,16 +97,13 @@ class EquipmentTest {
         val id = createValidEquipmentId()
         val name = createValidEquipmentName()
 
-        // 既に廃棄済みの備品を作成
-        val disposedEquipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.DISPOSED, emptyList<Borrowing>())
+        // 既に廃棄済みの備品を作成（テスト専用ファクトリーメソッドを使用）
+        val disposedEquipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.DISPOSED,
+            borrowings = emptyList()
+        )
 
         // Act
         val result = disposedEquipment.dispose(today)
@@ -143,15 +133,12 @@ class EquipmentTest {
             period = currentPeriod
         )
 
-        val equipmentWithCurrentBorrowing = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(currentBorrowing))
+        val equipmentWithCurrentBorrowing = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.BORROWED,
+            borrowings = listOf(currentBorrowing)
+        )
 
         // Act
         val result = equipmentWithCurrentBorrowing.dispose(today)
@@ -181,15 +168,12 @@ class EquipmentTest {
             period = futurePeriod
         )
 
-        val equipmentWithFutureBorrowing = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.AVAILABLE, listOf(futureBorrowing))
+        val equipmentWithFutureBorrowing = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.AVAILABLE,
+            borrowings = listOf(futureBorrowing)
+        )
 
         // Act
         val result = equipmentWithFutureBorrowing.dispose(today)
@@ -206,16 +190,13 @@ class EquipmentTest {
         val id = createValidEquipmentId()
         val name = createValidEquipmentName()
 
-        // 廃棄済み備品を作成
-        val disposedEquipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.DISPOSED, emptyList<Borrowing>())
+        // 廃棄済み備品を作成（テスト専用ファクトリーメソッドを使用）
+        val disposedEquipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.DISPOSED,
+            borrowings = emptyList()
+        )
 
         // 新しい貸出を作成
         val period = createValidPeriod(
@@ -258,15 +239,12 @@ class EquipmentTest {
             period = existingPeriod
         )
 
-        val equipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(existingBorrowing))
+        val equipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.BORROWED,
+            borrowings = listOf(existingBorrowing)
+        )
 
         // 重複する期間の新しい貸出を作成（2025-10-23 から 2025-10-28、既存と重複）
         val overlappingPeriod = createValidPeriod(
@@ -471,16 +449,13 @@ class EquipmentTest {
             period = currentPeriod
         )
 
-        // 現在貸出中の備品を作成
-        val equipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(currentBorrowing))
+        // 現在貸出中の備品を作成（テスト専用ファクトリーメソッドを使用）
+        val equipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.BORROWED,
+            borrowings = listOf(currentBorrowing)
+        )
 
         // Act
         val result = equipment.returnBorrowing(currentBorrowingId, today)
@@ -530,16 +505,13 @@ class EquipmentTest {
             period = currentPeriod
         )
 
-        // 2つの貸出を持つ備品を作成
-        val equipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.BORROWED, listOf(pastBorrowing, currentBorrowing))
+        // 2つの貸出を持つ備品を作成（テスト専用ファクトリーメソッドを使用）
+        val equipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.BORROWED,
+            borrowings = listOf(pastBorrowing, currentBorrowing)
+        )
 
         // Act: 過去の貸出を返却
         val result = equipment.returnBorrowing(pastBorrowingId, today)
@@ -576,16 +548,13 @@ class EquipmentTest {
             period = futurePeriod
         )
 
-        // 未来の予約のみを持つ備品を作成（status は AVAILABLE）
-        val equipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.AVAILABLE, listOf(futureBorrowing))
+        // 未来の予約のみを持つ備品を作成（テスト専用ファクトリーメソッドを使用）
+        val equipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.AVAILABLE,
+            borrowings = listOf(futureBorrowing)
+        )
 
         // Act: 未来の予約を返却
         val result = equipment.returnBorrowing(futureBorrowingId, today)
@@ -621,16 +590,13 @@ class EquipmentTest {
             period = pastPeriod
         )
 
-        // 廃棄済み備品を作成（過去の貸出を持つが、status は DISPOSED）
-        val disposedEquipment = Equipment::class.java
-            .getDeclaredConstructor(
-                EquipmentId::class.java,
-                EquipmentName::class.java,
-                EquipmentStatus::class.java,
-                List::class.java
-            )
-            .apply { isAccessible = true }
-            .newInstance(id, name, EquipmentStatus.DISPOSED, listOf(pastBorrowing))
+        // 廃棄済み備品を作成（テスト専用ファクトリーメソッドを使用）
+        val disposedEquipment = Equipment.createForTest(
+            id = id,
+            name = name,
+            status = EquipmentStatus.DISPOSED,
+            borrowings = listOf(pastBorrowing)
+        )
 
         // Act: 廃棄済み備品に対して返却を試みる
         val result = disposedEquipment.returnBorrowing(pastBorrowingId, today)
