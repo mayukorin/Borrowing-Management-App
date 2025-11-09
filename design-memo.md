@@ -310,3 +310,113 @@ fun contains(date: LocalDate): Boolean {
   - `this.from <= other.to && this.to >= other.from`
   - 例: 10/20～10/25 と 10/25～10/30 は 10/25 で重複（連続）していると見なす
   - 例: 10/20～10/25 と 10/26～10/30 は重複していない（断続的）
+
+## アプリケーションサービス層の設計方針
+
+### Command オブジェクトの使用
+
+アプリケーションサービスのメソッドは、プリミティブ型の引数を直接受け取るのではなく、Command オブジェクトを受け取る設計とする。
+
+**Command オブジェクトを使う理由:**
+- **拡張性**: 引数が増えた場合でも、Command オブジェクトに新しいフィールドを追加するだけでメソッドシグネチャが変わらない
+- **可読性**: メソッド呼び出し時に何を渡しているか明確になる（例: `RegisterEquipmentCommand(name = "プロジェクター")`）
+- **バリデーションの集約**: Command オブジェクトにバリデーションロジックをまとめることができる
+- **意図の明確化**: Command の名前（例: `RegisterEquipmentCommand`）が何をするかを明示する
+
+**例:**
+```kotlin
+// 悪い例: プリミティブ型を直接受け取る
+fun registerEquipment(name: String?): EquipmentDto
+
+// 良い例: Command オブジェクトを受け取る
+data class RegisterEquipmentCommand(val name: String?)
+fun registerEquipment(command: RegisterEquipmentCommand): EquipmentDto
+```
+
+### DTO（Data Transfer Object）と Result 型の返却
+
+アプリケーションサービスのメソッドは、ドメインエンティティを直接返すのではなく、DTO を Result 型でラップして返す設計とする。
+
+**DTO を返す理由:**
+- **レイヤー分離**: ドメイン層とプレゼンテーション層を分離し、ドメインモデルの変更がプレゼンテーション層に影響しないようにする
+- **情報隠蔽**: エンティティの内部構造（例: すべてのフィールドや関係）を外部に公開せず、必要な情報だけを公開できる
+- **柔軟性**: API レスポンスの形式を自由に設計できる（エンティティの構造に縛られない）
+- **セキュリティ**: 機密情報や内部実装の詳細を隠蔽できる
+
+**Result 型でラップする理由:**
+- **ドメインエラーの型安全な処理**: ビジネスルール違反を型として表現し、コンパイラにエラーハンドリングを強制させる
+- **エラーの明確な区別**: ドメインエラー（Result）とインフラエラー（Exception）を明確に分離
+- **エラーの網羅性**: sealed class により、すべてのエラーケースの処理を保証
+- **拡張性**: 新しいドメインエラーを追加しやすい
+
+**例:**
+```kotlin
+// 悪い例: エンティティを直接返す
+fun registerEquipment(command: RegisterEquipmentCommand): Equipment
+
+// 良い例: Result<DTO, エラー型> を返す
+data class EquipmentDto(
+    val id: String,
+    val name: String,
+    val status: String
+)
+
+sealed class RegisterEquipmentError {
+    data class InvalidName(val error: EquipmentNameError) : RegisterEquipmentError()
+}
+
+fun registerEquipment(command: RegisterEquipmentCommand): Result<EquipmentDto, RegisterEquipmentError> {
+    return binding {
+        val equipmentName = EquipmentName.from(command.name)
+            .mapError { RegisterEquipmentError.InvalidName(it) }
+            .bind()
+
+        val equipmentId = equipmentRepository.nextId()
+        val equipment = Equipment.create(equipmentId, equipmentName)
+        equipmentRepository.save(equipment)
+
+        EquipmentDto(
+            id = equipment.id.value,
+            name = equipment.name.value,
+            status = equipment.status.name
+        )
+    }
+}
+```
+
+**エラーハンドリングの責務分担:**
+- **ドメインエラー**: Result 型で返す（業務ルール違反、バリデーションエラーなど）
+- **インフラエラー**: Exception をスローする（DB接続エラー、トランザクションエラーなど）
+
+### リポジトリのエラーハンドリング
+
+リポジトリ層でのエラー（例: DB接続エラー、トランザクションエラーなど）は、アプリケーション層で回復不可能なインフラストラクチャの問題であることが多い。そのため、`Result` 型で返すのではなく、Exception を throw する設計とする。
+
+**理由:**
+- インフラエラーはアプリケーション層で処理すべきではない（フレームワーク層で処理）
+- ビジネスロジックのエラー（ドメインエラー）とインフラエラーを明確に区別できる
+- コードがシンプルになる（Result のネストが不要）
+
+**例:**
+```kotlin
+interface IEquipmentRepository {
+    fun nextId(): EquipmentId
+    fun save(equipment: Equipment)  // 失敗時は Exception を throw
+    fun findById(id: EquipmentId): Equipment?  // 見つからない場合は null（正常なケース）
+}
+```
+
+### ID生成の責務
+
+エンティティの ID 生成は、ドメイン層の関心事ではなくインフラストラクチャ層の関心事として扱う。そのため、リポジトリが `nextId()` メソッドを提供し、ID 生成の実装詳細（UUID、シーケンス、カウンターなど）を隠蔽する。
+
+**理由:**
+- ID 生成方法（UUID、DB シーケンス、カウンターなど）は永続化の実装詳細
+- ドメイン層は ID 生成の具体的な方法を知る必要がない
+- テスト時に ID 生成をモック化しやすい
+
+**例:**
+```kotlin
+val equipmentId = equipmentRepository.nextId()  // リポジトリが採番
+val equipment = Equipment.create(equipmentId, name)
+```
