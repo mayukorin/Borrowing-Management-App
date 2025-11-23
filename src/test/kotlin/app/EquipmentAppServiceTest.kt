@@ -2,7 +2,6 @@ package app
 
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.unwrap
 import domain.*
 import io.mockk.*
@@ -15,6 +14,11 @@ class EquipmentAppServiceTest {
     private lateinit var equipmentRepository: IEquipmentRepository
     private lateinit var equipmentAppService: EquipmentAppService
 
+    companion object {
+        private const val VALID_EQUIPMENT_ID = "eq-001"
+        private const val VALID_EQUIPMENT_NAME = "プロジェクター"
+    }
+
     @BeforeEach
     fun setup() {
         equipmentRepository = mockk()
@@ -24,20 +28,20 @@ class EquipmentAppServiceTest {
     @Test
     fun `有効な備品名で備品を登録できる`() {
         // Given
-        val expectedId = EquipmentId.from("eq-001").unwrap()
+        val expectedId = EquipmentId.from(VALID_EQUIPMENT_ID).unwrap()
         every { equipmentRepository.nextId() } returns expectedId
         every { equipmentRepository.save(any()) } just Runs
 
         // When
         val result = equipmentAppService.registerEquipment(
-            RegisterEquipmentCommand(name = "プロジェクター")
+            RegisterEquipmentCommand(name = VALID_EQUIPMENT_NAME)
         )
 
         // Then
         assertTrue(result is Ok)
         val dto = result.value
-        assertEquals("eq-001", dto.id)
-        assertEquals("プロジェクター", dto.name)
+        assertEquals(VALID_EQUIPMENT_ID, dto.id)
+        assertEquals(VALID_EQUIPMENT_NAME, dto.name)
         assertEquals("AVAILABLE", dto.status)
 
         verify(exactly = 1) { equipmentRepository.nextId() }
